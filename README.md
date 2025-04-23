@@ -28,8 +28,8 @@ http://localhost:8000/api
   "description": "Learn about Symfony",
   "country": "France",
   "capacity": 100,
-  "startDate": "2025-05-01T10:00:00",
-  "endDate": "2025-05-01T18:00:00"
+  "startDate": "2025-05-01",
+  "endDate": "2025-05-01"
 }
 ```
 
@@ -100,7 +100,12 @@ GET /api/events/1
 #### Request Body
 ```json
 {
-  "title": "Symfony Conf 2025"
+  "title": "Symfony  2025",
+  "description": "Learn about Symfony",
+  "country": "France",
+  "capacity": 100,
+  "startDate": "2025-05-01",
+  "endDate": "2025-05-01"
 }
 ```
 

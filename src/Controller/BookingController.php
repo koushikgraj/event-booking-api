@@ -1,11 +1,9 @@
 <?php
+// src/Controller/BookingController.php
 
 namespace App\Controller;
 
-use App\Entity\Booking;
-use App\Entity\Event;
-use App\Entity\Attendee;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Service\BookingService;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Annotation\Route;
@@ -14,58 +12,49 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 #[Route('/api/bookings')]
 class BookingController extends AbstractController
 {
+    public function __construct(private BookingService $bookingService) {}
+
     #[Route('', name: 'booking_create', methods: ['POST'])]
-    public function book(Request $request, EntityManagerInterface $em): JsonResponse
+    public function book(Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
-
-        $event = $em->getRepository(Event::class)->find($data['event_id']);
-        $attendee = $em->getRepository(Attendee::class)->find($data['attendee_id']);
-
-        if (!$event || !$attendee) {
-            return $this->json(['error' => 'Event or Attendee not found'], 404);
+        if (!isset($data['event_id'], $data['attendee_id'])) {
+            return $this->json(['error' => 'event_id and attendee_id required'], 400);
+        }
+        if (!isset($data['eventId']) || !is_numeric($data['eventId'])) {
+            return $this->json(['error' => 'Invalid event ID'], 400);
+        }
+        $event = $this->eventRepository->find($eventId);
+        if (!$event) {
+            return new JsonResponse(['error' => 'Invalid event ID'], 404);
         }
 
-        // Check for overbooking
-        $bookedCount = $em->getRepository(Booking::class)->count(['event' => $event]);
-        if ($bookedCount >= $event->getCapacity()) {
-            return $this->json(['error' => 'Event is fully booked'], 400);
+        $attendee = $this->attendeeRepository->find($attendeeId);
+        if (!$attendee) {
+            return new JsonResponse(['error' => 'Invalid attendee ID'], 404);
         }
+        
+        $eventId = (int) $data['eventId'];
 
-        // Prevent duplicate bookings
-        $existing = $em->getRepository(Booking::class)->findOneBy([
-            'event' => $event,
-            'attendee' => $attendee
-        ]);
-        if ($existing) {
-            return $this->json(['error' => 'Attendee already booked this event'], 400);
+        try {
+            $booking = $this->bookingService->createBooking($eventId, $data['attendee_id']);
+            return $this->json($booking, 201);
+        } catch (\Exception $e) {
+            return $this->json(['error' => $e->getMessage()], $e->getCode() ?: 400);
         }
-
-        $booking = new Booking();
-        $booking->setEvent($event);
-        $booking->setAttendee($attendee);
-
-        $em->persist($booking);
-        $em->flush();
-
-        return $this->json($booking);
     }
 
     #[Route('/', name: 'list_bookings', methods: ['GET'])]
-    public function list(EntityManagerInterface $em): JsonResponse
+    public function list(): JsonResponse
     {
-        $bookings = $em->getRepository(Booking::class)->findAll();
+        $bookings = $this->bookingService->listBookings();
 
-        $data = [];
-        foreach ($bookings as $booking) {
-            $data[] = [
-                'id' => $booking->getId(),
-                'attendee' => $booking->getAttendee()?->getName(),
-                'event' => $booking->getEvent()?->getTitle(),
-            ];
-        }
+        $data = array_map(fn($b) => [
+            'id' => $b->getId(),
+            'attendee' => $b->getAttendee()?->getName(),
+            'event' => $b->getEvent()?->getTitle(),
+        ], $bookings);
+
         return $this->json($data);
-
     }
-
 }

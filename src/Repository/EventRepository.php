@@ -1,6 +1,4 @@
 <?php
-
-// src/Repository/EventRepository.php
 namespace App\Repository;
 
 use App\Entity\Event;
@@ -13,4 +11,6 @@ class EventRepository extends ServiceEntityRepository
     {
         parent::__construct($registry, Event::class);
     }
+
+    // Additional custom query methods can go here
 }
